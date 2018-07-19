@@ -23,6 +23,9 @@
 # MDR0 configuration data - the configuration byte is formed with
 # single segments taken from each group and ORing all together.
 
+COUNTER_BITS = (32, 24, 16, 8)
+QUADRATURE_MODES = (0, 1, 2, 4)
+
 # Count modes
 NQUAD = 0x00          # non-quadrature mode
 QUADRX1 = 0x01        # X1 quadrature mode
@@ -89,10 +92,9 @@ class LS7366R():
     def __init__(self, spi):
         # This should be a SpiDev or compatible object.
         self._spi = spi
-        self._spi.max_speed_hz = 50000
 
         # Default config
-        self._write_mdr0(QUADRX4 | FREE_RUN | DISABLE_INDX | FILTER_2)
+        self._write_mdr0(QUADRX4 | FREE_RUN | DISABLE_INDX | FILTER_1)
         self._write_mdr1(BYTE_4 | EN_CNTR)
 
         # Set to zero at start
@@ -100,29 +102,51 @@ class LS7366R():
 
     @property
     def counts(self):
-        """Current counts value."""
+        """Current counts as signed integer."""
         return self._get_counts()
 
     @counts.setter
     def counts(self, value):
         self._set_counts(value)
 
+    @property
+    def bits(self):
+        """Counter bits."""
+        return COUNTER_BITS[self._read_mdr1()[0] & 0x03]
+
+    @bits.setter
+    def bits(self, value):
+        if value not in COUNTER_BITS:
+            raise ValueError("Bits must be one of ", *COUNTER_BITS)
+        self._write_mdr1(self._read_mdr1()[0] &0xFC | COUNTER_BITS.index(value))
+
+    @property
+    def quadrature(self):
+        """Quadrature mode."""
+        return QUADRATURE_MODES[self._read_mdr0()[0] & 0x03]
+
+    @quadrature.setter
+    def quadrature(self, value):
+        if value not in QUADRATURE_MODES:
+            raise ValueError("Mode must be one of ", *QUADRATURE_MODES)
+        self._write_mdr0((self._read_mdr0()[0] & 0xFC) | QUADRATURE_MODES.index(value))
+
     def _get_counts(self, ):
-        """Read the counter register value."""
-        b = self._read_cntr()
-        return (b[0] & 0xFF) << 24 |  \
-               (b[1] & 0xFF) << 16 |  \
-               (b[2] & 0xFF) <<  8 |  \
-               (b[3] & 0xFF)
+        """Read the counter register value."""      
+        bits = self.bits
+        byte_values = self._read_cntr()
+        counts = 0
+        for b in byte_values:
+            counts <<= 8
+            counts |= b
+        if counts >> (bits - 1):
+            counts -= 1 << bits
+        return counts
 
     def _set_counts(self, value):
         """Set the counter register value."""
         self._write_dtr(value)
         self._load_cntr()
-
-    def _get_byte_mode(self):
-        """Return current counter mode number of bytes (1 to 4)."""
-        return 4 - (self._read_mdr1()[0] & 0x03)
 
     def _clear_mdr0(self):
         """Clear MDR0."""
@@ -141,23 +165,24 @@ class LS7366R():
         self._spi.writebytes([CLR_STR])
 
     def _read_mdr0(self):
-        """Output MDR0 serially on MISO."""
+        """Read the 8 bit MDR0 register."""
         return self._spi.xfer2([READ_MDR0, 0x00])[1:]
 
     def _read_mdr1(self):
-        """Output MDR1 serially on MISO."""
+        """Read the 8 bit MDR1 register."""
         return self._spi.xfer2([READ_MDR1, 0x00])[1:]
 
     def _read_cntr(self):
-        """Transfer CNTR to OTR, then output OTR serially on MISO."""
-        return self._spi.xfer2([READ_CNTR,0x00,0x00,0x00,0x00])[1:]
+        """Transfer CNTR to OTR, then read OTR. Size of return depends
+           on current bit setting."""
+        return self._spi.xfer2([READ_CNTR]+[0]*(self.bits//8))[1:]
 
     def _read_otr(self):
         """Output OTR."""
-        return self._spi.xfer2([READ_OTR,0x00,0x00,0x00,0x00])[1:]
+        return self._spi.xfer2([READ_OTR]+[0]*(self.bits//8))[1:]
 
     def _read_str(self):
-        """Output STR."""
+        """Read 8 bit STR register."""
         return self._spi.xfer2([READ_STR,0x00])[1:]
 
     def _write_mdr0(self, mode):
@@ -169,16 +194,16 @@ class LS7366R():
         self._spi.writebytes([WRITE_MDR1, mode])
 
     def _write_dtr(self, value):
-        """Write serial data at MOSI into DTR."""
+        """Write to 32 bit DTR register."""
         self._spi.writebytes([WRITE_DTR, value >> 24 & 0xFF,
-                                        value >> 16 & 0xFF,
-                                        value >>  8 & 0xFF,
-                                        value       & 0xFF])
+                                         value >> 16 & 0xFF,
+                                         value >>  8 & 0xFF,
+                                         value       & 0xFF])
 
     def _load_cntr(self):
-        """Transfer DTR to CNTR in parallel."""
+        """Transfer DTR to CNTR."""
         self._spi.writebytes([LOAD_CNTR])
 
     def _load_otr(self):
-        """Transfer CNTR to OTR in parallel."""
+        """Transfer CNTR to OTR."""
         self._spi.writebytes([LOAD_OTR])
