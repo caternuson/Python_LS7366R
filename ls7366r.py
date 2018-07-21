@@ -20,71 +20,70 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-# MDR0 configuration data - the configuration byte is formed with
-# single segments taken from each group and ORing all together.
-
 COUNTER_BITS = (32, 24, 16, 8)
 QUADRATURE_MODES = (0, 1, 2, 4)
 
-# Count modes
-NQUAD = 0x00          # non-quadrature mode
-QUADRX1 = 0x01        # X1 quadrature mode
-QUADRX2 = 0x02        # X2 quadrature mode
-QUADRX4 = 0x03        # X4 quadrature mode
+# Masks for the instruction register (IR)
+REG_CLEAR   = 0x00
+REG_READ    = 0x40
+REG_WRITE   = 0x80
+REG_LOAD    = 0xC0
 
-# Running modes
-FREE_RUN = 0x00
-SINGE_CYCLE = 0x04
-RANGE_LIMIT = 0x08
-MODULO_N = 0x0C
+REG_NONE    = 0x00
+REG_MDR0    = 0x08  # Mode Register 0
+REG_MDR1    = 0x10  # Mode Register 1
+REG_DTR     = 0x18  # Data Register
+REG_CNTR    = 0x20  # Counter Register
+REG_OTR     = 0x28  # Output coutner Register
+REG_STR     = 0x39  # Status Register
 
-# Index modes
-DISABLE_INDX = 0x00   # index_disabled
-INDX_LOADC = 0x10     # index_load_CNTR
-INDX_RESETC = 0x20    # index_rest_CNTR
-INDX_LOADO = 0x30     # index_load_OL
-ASYNCH_INDX = 0x00    # asynchronous index
-SYNCH_INDX = 0x80     # synchronous index
+# Masks for Mode Register 0 (MDR0)
+QUAD_X0     = 0x00  # non-quadrature count mode. (A = clock, B = direction)
+QUAD_X1     = 0x01  # x1 quadrature count mode (one count per quadrature cycle)
+QUAD_X2     = 0x02  # x2 quadrature count mode (two counts per quadrature cycle)
+QUAD_X4     = 0x03  # x4 quadrature count mode (four counts per quadrature cycle)
 
-# Clock filter modes
-FILTER_1 = 0x00       # filter clock frequncy division factor 1
-FILTER_2 = 0x80       # filter clock frequncy division factor 2
+CNT_FREE    = 0x00  # free-running count mode
+CNT_SINGLE  = 0x04  # single-cycle count mode
+CNT_LIMIT   = 0x08  # range-limit count mode
+CNT_MODULO  = 0x0C  # modulo-n count mode
 
-# MDR1 configuration data; any of these
-# data segments can be ORed together
+INDEX_DISABLE   = 0x00  # disable index
+INDEX_LOAD_CNTR = 0x10  # configure index as the "load CNTR" input (transfers DTR to CNTR)
+INDEX_RST_CNTR  = 0x20  # configure index as the "reset CNTR" input (clears CNTR to 0)
+INDEX_LOAD_OTR  = 0x30  # configure index as the "load OTR" input (transfers CNTR to OTR)
 
-# Flag modes
-NO_FLAGS = 0x00       # all flags disabled
-IDX_FLAG = 0x10       # IDX flag
-CMP_FLAG = 0x20       # CMP flag
-BW_FLAG = 0x40        # BW flag
-CY_FLAG = 0x80        # CY flag
+INDEX_ASYNCH    = 0x00  # asynchronous index
+INDEX_SYNCH     = 0x40  # synchronous index (overridden in non-quadrature mode)
 
-# 1 to 4 bytes data-width
-BYTE_4 = 0x00         # four byte mode
-BYTE_3 = 0x01         # three byte mode
-BYTE_2 = 0x02         # two byte mode
-BYTE_1 = 0x03         # one byte mode
+FILTER_1    = 0x00  # filter clock division factor = 1
+FILTER_2    = 0x80  # filter clock division factor = 2
 
-# Enable/disable counter
-EN_CNTR = 0x00        # counting enabled
-DIS_CNTR = 0x04       # counting disabled
+# Masks for Mode Register 1 (MDR1)
+CNTR_ENABLE     = 0x00  # enable counting
+CNTR_DISABLE    = 0x04  # disable counting
 
-# LS7366R op-code list
-CLR_MDR0 = 0x08
-CLR_MDR1 = 0x10
-CLR_CNTR = 0x20
-CLR_STR = 0x30
-READ_MDR0 = 0x48
-READ_MDR1 = 0x50
-READ_CNTR = 0x60
-READ_OTR = 0x68
-READ_STR = 0x70
-WRITE_MDR1 = 0x90
-WRITE_MDR0 = 0x88
-WRITE_DTR = 0x98
-LOAD_CNTR = 0xE0
-LOAD_OTR = 0xE4
+CNTR_4_BYTE = 0x00  # 4-byte counter mode
+CNTR_3_BYTE = 0x01  # 3-byte counter mode
+CNTR_2_BYTE = 0x02  # 2-byte counter mode
+CNTR_1_BYTE = 0x03  # 1-byte counter mode
+
+FLAG_NONE   = 0x00  # FLAGs disabled
+FLAG_IDX    = 0x10  # FLAG on IDX (B4 of STR)
+FLAG_CMP    = 0x20  # FLAG on CMP (B5 of STR)
+FLAG_BW     = 0x40  # FLAG on BW (B6 of STR)
+FLAG_CY     = 0x80  # FLAG on CY (B7 of STR)
+
+# Masks for Status Register (STR)
+STR_SIGN    = 0x01  # Sign bit. 1: negative, 0: positive
+STR_DIR     = 0x02  # Count direction indicator: 0: count down, 1: count up
+STR_PLS     = 0x04  # Power loss indicator latch; set upon power up
+STR_CEN     = 0x08  # Count enable status: 0: counting disabled, 1: counting enabled
+STR_IDX     = 0x10  # Index latch
+STR_CMP     = 0x20  # Compare (CNTR = DTR) latch
+STR_BW      = 0x40  # Borrow (CNTR underflow) latch
+STR_CY      = 0x80  # Carry (CNTR overflow) latch
+
 
 class LS7366R():
     """LSI/CSI LS7366R quadrature counter."""
@@ -93,117 +92,77 @@ class LS7366R():
         # This should be a SpiDev or compatible object.
         self._spi = spi
 
-        # Default config
-        self._write_mdr0(QUADRX4 | FREE_RUN | DISABLE_INDX | FILTER_1)
-        self._write_mdr1(BYTE_4 | EN_CNTR)
-
-        # Set to zero at start
-        self.counts = 0
-
     @property
     def counts(self):
         """Current counts as signed integer."""
-        return self._get_counts()
+        bits = self.bits
+        counts = self._read_register(REG_CNTR)
+        if counts >> (bits - 1):
+            counts -= 1 << bits
+        return counts
 
     @counts.setter
     def counts(self, value):
-        self._set_counts(value)
+        self._write_register(REG_DTR, value)
+        self._load_register(REG_CNTR)
 
     @property
     def bits(self):
         """Counter bits."""
-        return COUNTER_BITS[self._read_mdr1()[0] & 0x03]
+        return COUNTER_BITS[self._read_register(REG_MDR1) & 0x03]
 
     @bits.setter
     def bits(self, value):
         if value not in COUNTER_BITS:
             raise ValueError("Bits must be one of ", *COUNTER_BITS)
-        self._write_mdr1(self._read_mdr1()[0] &0xFC | COUNTER_BITS.index(value))
+        other_stuff = self._read_register(REG_MDR1) & 0xFC
+        self._write_register(REG_MDR1, other_stuff | COUNTER_BITS.index(value))
 
     @property
     def quadrature(self):
         """Quadrature mode."""
-        return QUADRATURE_MODES[self._read_mdr0()[0] & 0x03]
+        return QUADRATURE_MODES[self._read_register(REG_MDR0) & 0x03]
 
     @quadrature.setter
     def quadrature(self, value):
         if value not in QUADRATURE_MODES:
             raise ValueError("Mode must be one of ", *QUADRATURE_MODES)
-        self._write_mdr0((self._read_mdr0()[0] & 0xFC) | QUADRATURE_MODES.index(value))
+        other_stuff = self._read_register(REG_MDR0) & 0xFC
+        self._write_register(REG_MDR0, other_stuff | QUADRATURE_MODES.index(value))
 
-    def _get_counts(self, ):
-        """Read the counter register value."""      
-        bits = self.bits
-        byte_values = self._read_cntr()
-        counts = 0
-        for b in byte_values:
-            counts <<= 8
-            counts |= b
-        if counts >> (bits - 1):
-            counts -= 1 << bits
-        return counts
+    @property
+    def enabled(self):
+        return bool(not self._read_register(REG_MDR1) & 0x04)
 
-    def _set_counts(self, value):
-        """Set the counter register value."""
-        self._write_dtr(value)
-        self._load_cntr()
+    @enabled.setter
+    def enabled(self, state):
+        other_stuff = self._read_register(REG_MDR1) & 0xFB
+        self._write_register(REG_MDR1, other_stuff | int(not state)<<2)
 
-    def _clear_mdr0(self):
-        """Clear MDR0."""
-        self._spi.writebytes([CLR_MDR0])
+    def _write_register(self, reg, value):
+        reg_bytes = []
+        if reg in (REG_DTR, REG_CNTR, REG_OTR):
+            for _ in range(self.bits//8):
+                reg_bytes.append(value & 0xFF)
+                value >>= 8
+            reg_bytes.reverse()
+        else:
+            reg_bytes = [value]
+        self._spi.writebytes([REG_WRITE | reg] + reg_bytes)
+    
+    def _read_register(self, reg):
+        if reg in (REG_DTR, REG_CNTR, REG_OTR):
+            reg_bytes = self._spi.xfer2([REG_READ | reg]+[0]*(self.bits//8))
+            value = 0
+            for b in reg_bytes:
+                value <<= 8
+                value |= b
+            return value
+        else:
+            return self._spi.xfer2([REG_READ | reg, 0x00])[1]
 
-    def _clear_mdr1(self):
-        """Clear MDR1."""
-        self._spi.writebytes([CLR_MDR1])
+    def _load_register(self, reg):
+        self._spi.writebytes([REG_LOAD | reg])
 
-    def _clear_cntr(self):
-        """Clear the counter."""
-        self._spi.writebytes([CLR_CNTR])
-
-    def _clear_str(self):
-        """Clear the status register."""
-        self._spi.writebytes([CLR_STR])
-
-    def _read_mdr0(self):
-        """Read the 8 bit MDR0 register."""
-        return self._spi.xfer2([READ_MDR0, 0x00])[1:]
-
-    def _read_mdr1(self):
-        """Read the 8 bit MDR1 register."""
-        return self._spi.xfer2([READ_MDR1, 0x00])[1:]
-
-    def _read_cntr(self):
-        """Transfer CNTR to OTR, then read OTR. Size of return depends
-           on current bit setting."""
-        return self._spi.xfer2([READ_CNTR]+[0]*(self.bits//8))[1:]
-
-    def _read_otr(self):
-        """Output OTR."""
-        return self._spi.xfer2([READ_OTR]+[0]*(self.bits//8))[1:]
-
-    def _read_str(self):
-        """Read 8 bit STR register."""
-        return self._spi.xfer2([READ_STR,0x00])[1:]
-
-    def _write_mdr0(self, mode):
-        """Write serial data at MOSI into MDR0."""
-        self._spi.writebytes([WRITE_MDR0, mode])
-
-    def _write_mdr1(self, mode):
-        """Write serial data at MOSI into MDR1."""
-        self._spi.writebytes([WRITE_MDR1, mode])
-
-    def _write_dtr(self, value):
-        """Write to 32 bit DTR register."""
-        self._spi.writebytes([WRITE_DTR, value >> 24 & 0xFF,
-                                         value >> 16 & 0xFF,
-                                         value >>  8 & 0xFF,
-                                         value       & 0xFF])
-
-    def _load_cntr(self):
-        """Transfer DTR to CNTR."""
-        self._spi.writebytes([LOAD_CNTR])
-
-    def _load_otr(self):
-        """Transfer CNTR to OTR."""
-        self._spi.writebytes([LOAD_OTR])
+    def _clear_register(self, reg):
+        self._spi.writebytes([REG_CLEAR | reg])
