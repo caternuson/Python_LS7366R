@@ -97,8 +97,8 @@ class LS7366R():
         """Current counts as signed integer."""
         bits = self.bits
         counts = self._read_register(REG_CNTR)
-        if counts >> (bits - 1):
-            counts -= 1 << bits
+        # convert 2s comp to signed int
+        counts = counts - (1 << bits) if counts >> (bits - 1) else counts  
         return counts
 
     @counts.setter
@@ -132,6 +132,7 @@ class LS7366R():
 
     @property
     def enabled(self):
+        """Counting state."""
         return bool(not self._read_register(REG_MDR1) & 0x04)
 
     @enabled.setter
@@ -141,28 +142,28 @@ class LS7366R():
 
     def _write_register(self, reg, value):
         reg_bytes = []
-        if reg in (REG_DTR, REG_CNTR, REG_OTR):
-            for _ in range(self.bits//8):
-                reg_bytes.append(value & 0xFF)
-                value >>= 8
-            reg_bytes.reverse()
-        else:
-            reg_bytes = [value]
+        for _ in range(self._sizeof_register(reg)):
+            reg_bytes.append(value & 0xFF)
+            value >>= 8
+        reg_bytes.reverse()
         self._spi.writebytes([REG_WRITE | reg] + reg_bytes)
     
     def _read_register(self, reg):
-        if reg in (REG_DTR, REG_CNTR, REG_OTR):
-            reg_bytes = self._spi.xfer2([REG_READ | reg]+[0]*(self.bits//8))
-            value = 0
-            for b in reg_bytes:
-                value <<= 8
-                value |= b
-            return value
-        else:
-            return self._spi.xfer2([REG_READ | reg, 0x00])[1]
+        reg_bytes = self._spi.xfer2([REG_READ | reg]+[0]*self._sizeof_register(reg))
+        value = 0
+        for b in reg_bytes:
+            value <<= 8
+            value |= b
+        return value        
 
     def _load_register(self, reg):
         self._spi.writebytes([REG_LOAD | reg])
 
     def _clear_register(self, reg):
         self._spi.writebytes([REG_CLEAR | reg])
+
+    def _sizeof_register(self, reg):
+        if reg in (REG_DTR, REG_CNTR, REG_OTR):
+            return self.bits // 8
+        else:
+            return 1
